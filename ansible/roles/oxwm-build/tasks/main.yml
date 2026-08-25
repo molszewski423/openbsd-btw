@@ -25,12 +25,18 @@
         dest: /tmp/zig-0.16.0.tar.xz
         mode: "0644"
 
+    # Base tar has no -J (or --strip-components - checked, OpenBSD's
+    # bsdtar doesn't have it), hence xz|tar then a separate move.
     - name: Extract (base tar has no -J; xz then tar)
       ansible.builtin.shell: xz -dc /tmp/zig-0.16.0.tar.xz | tar -xf - -C /tmp/zigextract
       changed_when: true
 
+    # The exact extracted directory name, not a /*/* wildcard glob - hit a
+    # real failure where a wildcard-glob mv reported success but "zig"
+    # wasn't actually at the expected destination afterward (root cause
+    # unclear); this sidesteps it with an unambiguous, known-exact path.
     - name: Move extracted contents into place
-      ansible.builtin.shell: "mv /tmp/zigextract/*/* /home/{{ ansible_user }}/.local/zig-0.16.0/"
+      ansible.builtin.shell: "mv /tmp/zigextract/zig-x86_64-openbsd-0.16.0/* /home/{{ ansible_user }}/.local/zig-0.16.0/"
       changed_when: true
 
     - name: Clean up
