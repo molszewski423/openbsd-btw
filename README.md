@@ -29,10 +29,16 @@ infrastructure in three deliberate phases:
 
 3. **Build a self-installing ISO.** `iso/` respins OpenBSD's official
    install media with an `autoinstall(8)` response file and an
-   `/etc/rc.firsttime` hook (installed via a custom `siteXX.tgz` set)
-   that fetches and runs the Ansible playbook automatically on first
-   boot — no babysitting the installer, no manual `ansible-playbook`
-   invocation after the fact.
+   `/etc/rc.firsttime` hook (installed via a custom `siteXX.tgz` set) that
+   fetches and runs the Ansible playbook automatically on first boot
+   against a temporary bootstrap account, then hands off to a small
+   graphical (X11) prompt that collects the real username/password and
+   renames the account into place — no babysitting the installer beyond
+   that one prompt, no manual `ansible-playbook` invocation after the fact,
+   and no hardcoded account baked into the ISO, so the same image works for
+   anyone who installs it. Account creation happens graphically rather than
+   at the raw text console because raw console keyboard input proved
+   unreliable in testing; X11's own input path didn't have that problem.
 
 Each phase was tested against the actual mechanism it depends on before
 moving to the next — the dotfiles were diffed against the live machine,

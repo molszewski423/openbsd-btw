@@ -5,10 +5,9 @@
 # embedded ramdisk filesystem - not available on Linux). Run this from
 # openbsd-btw itself, or any other OpenBSD box.
 #
-# NOT YET TESTED END-TO-END - this is a solid first draft of the right
-# sequence of operations, not a proven working script. Expect to iterate:
-# ISO respinning/ramdisk mount details are exactly the kind of thing that
-# needs a real run to shake out. Needs root (mounting the vnd device).
+# Tested end-to-end 2026-08-25: respin, unattended autoinstall, the
+# rc.firsttime hook, and firstboot.sh's fetch/provision all confirmed
+# working against a real install. Needs root (mounting the vnd device).
 set -e
 
 REL=7.9
@@ -72,8 +71,22 @@ vnconfig -u vnd2 2>/dev/null || true
 echo "==> Working in $WORKDIR"
 cd "$WORKDIR"
 
-echo "==> Fetching base install ISO"
-ftp -o base.iso "$ISO_URL"
+# Cached alongside WORKDIR_BASE rather than under $HOME: this runs under
+# doas, which resets HOME to root's (/root) - and root's home is on the
+# small base OS partition, not wherever the caller pointed WORKDIR_BASE for
+# actually having room to build (hit a real disk-full death from this
+# exact mistake, caching to /root on a 430M partition).
+CACHE_DIR="$WORKDIR_BASE/.openbsd-btw-cache"
+CACHED_ISO="$CACHE_DIR/install${RELNUM}.iso"
+mkdir -p "$CACHE_DIR"
+if [ -f "$CACHED_ISO" ]; then
+	echo "==> Using cached base ISO: $CACHED_ISO"
+	cp "$CACHED_ISO" base.iso
+else
+	echo "==> Fetching base install ISO"
+	ftp -o base.iso "$ISO_URL"
+	cp base.iso "$CACHED_ISO"
+fi
 
 echo "==> Extracting ISO contents"
 mkdir iso_root
@@ -83,16 +96,18 @@ cp -Rp iso_mnt/* iso_root/
 umount iso_mnt
 vnconfig -u vnd1
 
-echo "==> Building site set (site79.tgz) with install.site + firstboot.sh"
+echo "==> Building site set (site79.tgz) with install.site + firstboot.sh + onetime-account-setup.sh"
 mkdir site_root
 cp "$SCRIPT_DIR/install.site" site_root/install.site
 cp "$SCRIPT_DIR/firstboot.sh" site_root/firstboot.sh
-chmod +x site_root/install.site site_root/firstboot.sh
-# firstboot.sh goes in at the tar root so it lands at /firstboot.sh on the
-# installed system - install.site (also in this same tarball) references
-# it directly, no network fetch needed to get the bootstrap script onto
-# the machine.
-( cd site_root && tar -czf ../iso_root/${REL}/${ARCH}/site${RELNUM}.tgz install.site firstboot.sh )
+cp "$SCRIPT_DIR/onetime-account-setup.sh" site_root/onetime-account-setup.sh
+chmod +x site_root/install.site site_root/firstboot.sh site_root/onetime-account-setup.sh
+# All three go in at the tar root so they land at /firstboot.sh and
+# /onetime-account-setup.sh on the installed system - install.site (also in
+# this same tarball) references firstboot.sh directly, and firstboot.sh in
+# turn references onetime-account-setup.sh directly, no network fetch
+# needed to get any of this onto the machine.
+( cd site_root && tar -czf ../iso_root/${REL}/${ARCH}/site${RELNUM}.tgz install.site firstboot.sh onetime-account-setup.sh )
 
 echo "==> Injecting auto_install.conf into bsd.rd's embedded ramdisk"
 cp iso_root/${REL}/${ARCH}/bsd.rd bsd.rd.orig

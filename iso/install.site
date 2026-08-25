@@ -14,9 +14,11 @@
 cat >> /etc/rc.firsttime <<'EOF'
 
 # --- openbsd-btw first-boot provisioning ---
+# Runs attached to the real console, not redirected to a log file: part of
+# this script is now interactive (account creation), and a silenced prompt
+# is indistinguishable from a hang to whoever's sitting at the console.
 echo "openbsd-btw: running firstboot.sh..."
-sh /firstboot.sh >/var/log/openbsd-btw-firstboot.log 2>&1 \
-	|| echo "openbsd-btw: firstboot.sh failed, check /var/log/openbsd-btw-firstboot.log"
+sh /firstboot.sh || echo "openbsd-btw: firstboot.sh failed"
 # --- end openbsd-btw ---
 EOF
 

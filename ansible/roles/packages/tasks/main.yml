@@ -3,6 +3,11 @@
 # we tried and abandoned along the way (dmenu -> switched to rofi,
 # gitwrapper -> wrong package, papirus-icon-theme -> ran out of disk,
 # never used) so a fresh install doesn't carry that cruft.
+#
+# fish is pinned to an exact version - hit a real "Ambiguous: fish could be
+# fish-4.6.0 fish-3.7.1p4" failure when the package mirror briefly carried
+# both during a snapshot rotation; openbsd_pkg has no way to prefer
+# "newest" itself, so pin instead of gambling on mirror timing.
 - name: Install desktop packages
   community.general.openbsd_pkg:
     name:
@@ -16,7 +21,7 @@
       - xclip
       - dunst
       - tailscale
-      - fish
+      - fish-4.6.0
       - ripgrep
       - libreoffice
       - neovim
