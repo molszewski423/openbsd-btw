@@ -1,6 +1,11 @@
 ---
 # The dotfiles/ tree at the repo root mirrors $HOME structure, one
-# subdirectory per concern. Copy each straight in.
+# subdirectory per concern. Copy each straight in. mode: preserve already
+# carries over each source file's real permissions (all four bin/ scripts
+# are tracked in git as mode 100755) - a separate "chmod +x" task after
+# this one is redundant, and hit a real, unexplained "file
+# (.../bin/urxvt-fish) is absent" failure despite the copy succeeding, so
+# it's gone rather than chased further.
 - name: Copy dotfiles into place
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../dotfiles/{{ item }}/"
@@ -16,16 +21,6 @@
     - dunst
     - picom
     - bin
-
-- name: Make bin/ scripts executable
-  ansible.builtin.file:
-    path: "/home/{{ ansible_user }}/bin/{{ item }}"
-    mode: "0755"
-  loop:
-    - set-wm
-    - pkg_add
-    - sync-cwm-menu
-    - urxvt-fish
 
 - name: Clone neovim config
   ansible.builtin.git:
