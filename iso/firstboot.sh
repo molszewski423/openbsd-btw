@@ -26,7 +26,7 @@ retry_pkg_add() {
 }
 
 echo "openbsd-btw firstboot: installing bootstrap deps"
-retry_pkg_add git python3 py3-pip
+retry_pkg_add git python-3.13.14 py3-pip
 
 echo "openbsd-btw firstboot: installing ansible"
 pip3 install --break-system-packages ansible-core
