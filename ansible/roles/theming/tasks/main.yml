@@ -61,6 +61,12 @@
     > /home/{{ ansible_user }}/.local/share/icons/Adwaita-Violet/scalable/status/folder-open.svg
   changed_when: true
 
+- name: Ensure Pictures directory exists
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/Pictures"
+    state: directory
+    mode: "0755"
+
 - name: Install wallpaper
   ansible.builtin.copy:
     src: wallpaper.png
