@@ -8,22 +8,27 @@
 # fish-4.6.0 fish-3.7.1p4" failure when the package mirror briefly carried
 # both during a snapshot rotation; openbsd_pkg has no way to prefer
 # "newest" itself, so pin instead of gambling on mirror timing.
+# Looped rather than one name: [list] call so each package's completion
+# prints its own "ok/changed: [localhost] => (item=...)" line - a single
+# batch call for all 15 (LibreOffice and neovim's dependency tree are the
+# slow ones) otherwise sits completely silent until every package is done.
 - name: Install desktop packages
   community.general.openbsd_pkg:
-    name:
-      - git
-      - thunar
-      - ranger
-      - feh
-      - picom
-      - rofi
-      - maim
-      - xclip
-      - dunst
-      - tailscale
-      - fish-4.6.0
-      - ripgrep
-      - libreoffice
-      - neovim
-      - arc-theme-solid
+    name: "{{ item }}"
     state: present
+  loop:
+    - git
+    - thunar
+    - ranger
+    - feh
+    - picom
+    - rofi
+    - maim
+    - xclip
+    - dunst
+    - tailscale
+    - fish-4.6.0
+    - ripgrep
+    - libreoffice
+    - neovim
+    - arc-theme-solid
