@@ -1,0 +1,18 @@
+#!/bin/sh
+# Runs once, chrooted, at the very end of the OpenBSD install/upgrade
+# process (see install.site(5)). Keep this minimal - just append a stub
+# to rc.firsttime that does the real provisioning once the machine has
+# actually booted and has real networking up. Append, don't overwrite:
+# the installer may have already written to rc.firsttime itself.
+
+cat >> /etc/rc.firsttime <<'EOF'
+
+# --- openbsd-btw first-boot provisioning ---
+echo "openbsd-btw: fetching and running firstboot.sh..."
+ftp -o /tmp/firstboot.sh "http://git.lan/mike/openbsd-btw/raw/branch/main/iso/firstboot.sh" \
+	&& sh /tmp/firstboot.sh >/var/log/openbsd-btw-firstboot.log 2>&1 \
+	|| echo "openbsd-btw: firstboot.sh failed, check /var/log/openbsd-btw-firstboot.log"
+# --- end openbsd-btw ---
+EOF
+
+echo "openbsd-btw: rc.firsttime provisioning hook installed"
