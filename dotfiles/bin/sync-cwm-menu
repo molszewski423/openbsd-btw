@@ -1,0 +1,33 @@
+#!/bin/ksh
+CWMRC="$HOME/.cwmrc"
+START="# --- auto GUI app menu (managed by sync-cwm-menu, do not edit below) ---"
+END="# --- end auto GUI app menu ---"
+
+[ -f "$CWMRC" ] || touch "$CWMRC"
+
+awk -v s="$START" -v e="$END" '
+  $0==s {skip=1; next}
+  $0==e {skip=0; next}
+  skip!=1 {print}
+' "$CWMRC" > "$CWMRC.tmp"
+
+{
+  cat "$CWMRC.tmp"
+  echo "$START"
+  for f in /usr/local/share/applications/*.desktop; do
+    [ -f "$f" ] || continue
+    grep -q "^Type=Application" "$f" || continue
+    grep -q "^NoDisplay=true" "$f" && continue
+    grep -q "^Terminal=true" "$f" && continue
+    name=$(grep -m1 "^Name=" "$f" | cut -d= -f2-)
+    execline=$(grep -m1 "^Exec=" "$f" | cut -d= -f2- | sed "s/%[a-zA-Z]//g" | sed "s/[[:space:]]*$//")
+    [ -z "$name" ] && continue
+    [ -z "$execline" ] && continue
+    slug=$(echo "$name" | tr "[:upper:]" "[:lower:]" | tr -c "[:alnum:]" "-" | sed "s/-\{1,\}/-/g;s/^-//;s/-$//")
+    echo "command $slug \"$execline\""
+  done
+  echo "$END"
+} > "$CWMRC.new"
+mv "$CWMRC.new" "$CWMRC"
+rm -f "$CWMRC.tmp"
+echo "cwm menu synced from $(ls /usr/local/share/applications/*.desktop 2>/dev/null | wc -l) desktop entries."

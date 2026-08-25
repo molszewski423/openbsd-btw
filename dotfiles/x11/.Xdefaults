@@ -1,0 +1,5 @@
+URxvt.depth: 32
+URxvt.background: [85]#1a1b26
+URxvt.foreground: #c0caf5
+URxvt.scrollBar: false
+URxvt.font: xft:JetBrainsMono Nerd Font Mono:size=11

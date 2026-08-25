@@ -1,0 +1,5 @@
+#!/bin/ksh
+case "$1" in
+  cwm|oxwm) echo "$1" > "$HOME/.wm_choice"; echo "Session set to $1 -- takes effect next login." ;;
+  *) echo "usage: set-wm cwm|oxwm"; exit 1 ;;
+esac

@@ -1,0 +1,8 @@
+#!/bin/ksh
+doas /usr/sbin/pkg_add "$@"
+rc=$?
+if [ $rc -eq 0 ]; then
+  "$HOME/bin/sync-cwm-menu"
+  echo "Restart cwm (Ctrl+Meta+Shift+R) to see any new menu entries."
+fi
+exit $rc

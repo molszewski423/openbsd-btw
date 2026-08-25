@@ -1,0 +1,103 @@
+* {
+    font:   "JetBrainsMono Nerd Font Propo 11";
+    bg:     #1a1b26;
+    fg:     #c0caf5;
+    selbg:  #bb9af7;
+    selfg:  #1a1b26;
+    border: #414868;
+}
+
+window {
+    background-color: @bg;
+    border: 2px;
+    border-color: @border;
+    border-radius: 4px;
+}
+
+mainbox {
+    background-color: @bg;
+}
+
+inputbar {
+    background-color: @bg;
+    text-color: @fg;
+    children: [ prompt, entry ];
+}
+
+prompt {
+    background-color: @bg;    text-color: @selbg;
+}
+
+entry {
+    background-color: @bg;    text-color: @fg;
+    placeholder-color: @border;
+}
+
+listview {
+    background-color: @bg;
+    lines: 10;
+}
+
+element {
+    background-color: @bg;
+    text-color: @fg;
+}
+
+element normal.normal {
+    background-color: @bg;
+    text-color: @fg;
+}
+
+element normal.urgent {
+    background-color: @bg;
+    text-color: @fg;
+}
+
+element normal.active {
+    background-color: @bg;
+    text-color: @fg;
+}
+
+element alternate.normal {
+    background-color: @bg;
+    text-color: @fg;
+}
+
+element alternate.urgent {
+    background-color: @bg;
+    text-color: @fg;
+}
+
+element alternate.active {
+    background-color: @bg;
+    text-color: @fg;
+}
+
+element selected {
+    background-color: @selbg;
+    text-color: @selfg;
+}
+
+element selected.normal {
+    background-color: @selbg;
+    text-color: @selfg;
+}
+
+element selected.urgent {
+    background-color: @selbg;
+    text-color: @selfg;
+}
+
+element selected.active {
+    background-color: @selbg;
+    text-color: @selfg;
+}
+
+element-text {
+    background-color: inherit;
+    text-color: inherit;
+}
+
+element-icon {
+    background-color: inherit;
+}
