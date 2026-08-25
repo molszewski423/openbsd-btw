@@ -1,0 +1,84 @@
+---
+# The dotfiles/ tree at the repo root mirrors $HOME structure, one
+# subdirectory per concern. Copy each straight in.
+- name: Copy dotfiles into place
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../dotfiles/{{ item }}/"
+    dest: "~/"
+    mode: preserve
+  loop:
+    - cwm
+    - oxwm
+    - shell
+    - x11
+    - gtk
+    - rofi
+    - dunst
+    - picom
+    - bin
+
+- name: Make bin/ scripts executable
+  ansible.builtin.file:
+    path: "~/bin/{{ item }}"
+    mode: "0755"
+  loop:
+    - set-wm
+    - pkg_add
+    - sync-cwm-menu
+    - urxvt-fish
+
+- name: Clone neovim config
+  ansible.builtin.git:
+    repo: https://github.com/tonybanters/nvim
+    dest: "~/.config/nvim"
+    depth: 1
+  register: nvim_clone
+  failed_when: false
+
+- name: Bootstrap neovim plugins (headless, triggers its own git clones)
+  ansible.builtin.command: nvim --headless "+qa"
+  when: nvim_clone is succeeded
+  changed_when: false
+  failed_when: false
+
+- name: Write codecompanion.nvim config (Ollama on MikePC, no API key needed)
+  ansible.builtin.copy:
+    dest: "~/.config/nvim/lua/config/codecompanion.lua"
+    mode: "0644"
+    content: |
+      require("codecompanion").setup({
+        adapters = {
+          http = {
+            extend = {
+              ollama = {
+                env = {
+                  url = "http://100.97.45.57:11434",
+                },
+                schema = {
+                  model = {
+                    default = "devstral:24b",
+                  },
+                },
+              },
+            },
+          },
+        },
+        strategies = {
+          chat = { adapter = "ollama" },
+          inline = { adapter = "ollama" },
+          cmd = { adapter = "ollama" },
+        },
+      })
+
+- name: Add codecompanion.nvim to plugin-list.lua
+  ansible.builtin.lineinfile:
+    path: "~/.config/nvim/lua/plugin-list.lua"
+    line: '    "olimorris/codecompanion.nvim",'
+    insertafter: '"nvim-lua/plenary.nvim",'
+  when: nvim_clone is succeeded
+
+- name: Add codecompanion require to init.lua
+  ansible.builtin.lineinfile:
+    path: "~/.config/nvim/init.lua"
+    line: 'require("config.codecompanion")'
+  when: nvim_clone is succeeded

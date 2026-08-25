@@ -1,0 +1,87 @@
+---
+# oxwm's runtime config (~/.config/oxwm/config.lua) is handled by the
+# dotfiles role. This role only builds the binary itself.
+
+- name: Check if Zig 0.16.0 already installed
+  ansible.builtin.stat:
+    path: "~/.local/zig-0.16.0/zig"
+  register: zig_installed
+
+- name: Install Zig 0.16.0 (OpenBSD's packaged zig is stuck on 0.15.x; oxwm needs 0.16+)
+  when: not zig_installed.stat.exists
+  block:
+    - name: Ensure extract dirs exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "~/.local/zig-0.16.0"
+        - /tmp/zigextract
+
+    - name: Download Zig 0.16.0 OpenBSD build
+      ansible.builtin.get_url:
+        url: https://ziglang.org/download/0.16.0/zig-x86_64-openbsd-0.16.0.tar.xz
+        dest: /tmp/zig-0.16.0.tar.xz
+        mode: "0644"
+
+    - name: Extract (base tar has no -J; xz then tar)
+      ansible.builtin.shell: xz -dc /tmp/zig-0.16.0.tar.xz | tar -xf - -C /tmp/zigextract
+      changed_when: true
+
+    - name: Move extracted contents into place
+      ansible.builtin.shell: mv /tmp/zigextract/*/* ~/.local/zig-0.16.0/
+      changed_when: true
+
+    - name: Clean up
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/zigextract
+        - /tmp/zig-0.16.0.tar.xz
+
+    - name: Symlink zig into ~/bin
+      ansible.builtin.file:
+        src: "~/.local/zig-0.16.0/zig"
+        dest: "~/bin/zig"
+        state: link
+
+- name: Check if oxwm already built
+  ansible.builtin.stat:
+    path: "~/.local/bin/oxwm"
+  register: oxwm_built
+
+- name: Build oxwm
+  when: not oxwm_built.stat.exists
+  block:
+    - name: Clone oxwm
+      ansible.builtin.git:
+        repo: https://github.com/tonybanters/oxwm
+        dest: "~/src/oxwm"
+        depth: 1
+
+    # Upstream build.zig doesn't link everything OpenBSD's static X11/font
+    # libs transitively need, and defaults to use_lld=false which produces
+    # a binary missing the .note.openbsd.ident segment the kernel requires
+    # to exec anything directly ("Exec format error" otherwise). This is
+    # the exact working version from today.
+    - name: Install patched build.zig
+      ansible.builtin.copy:
+        src: build.zig
+        dest: "~/src/oxwm/build.zig"
+        mode: "0644"
+
+    - name: Get OpenBSD release version for the build target
+      ansible.builtin.command: uname -r
+      register: openbsd_release
+      changed_when: false
+
+    - name: Build oxwm
+      ansible.builtin.command: >
+        ~/.local/zig-0.16.0/zig build
+        -Dtarget=x86_64-openbsd.{{ openbsd_release.stdout }}
+        --prefix ~/.local
+      args:
+        chdir: "~/src/oxwm"
+      changed_when: true

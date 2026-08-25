@@ -1,0 +1,33 @@
+---
+# Provisions a fresh OpenBSD install into the cwm/oxwm Tokyo Night desktop.
+# Usage: uncomment/add your target host in inventory.ini, then:
+#   ansible-playbook site.yml -k -K   (password auth + doas password prompt)
+#
+# Idempotent - safe to re-run.
+
+- name: OpenBSD desktop setup
+  hosts: openbsd_desktops
+  become: true
+  become_method: community.general.doas
+
+  pre_tasks:
+    # Ansible needs a Python interpreter on the target before any module
+    # other than raw/shell/script will work. OpenBSD has no Python in the
+    # base install, so bootstrap it with raw first.
+    - name: Check for python3
+      ansible.builtin.raw: test -x /usr/local/bin/python3
+      register: python_check
+      changed_when: false
+      failed_when: false
+
+    - name: Bootstrap python3 (needed for all other Ansible modules)
+      ansible.builtin.raw: pkg_add python-3.13.14
+      when: python_check.rc != 0
+
+  roles:
+    - packages
+    - dotfiles
+    - fonts
+    - theming
+    - oxwm-build
+    - services

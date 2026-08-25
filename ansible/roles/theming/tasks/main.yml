@@ -1,0 +1,74 @@
+---
+# Purple-folder icon override: Adwaita ships blue folder icons with no
+# built-in color variant, so this recolors folder.svg/folder-open.svg to
+# Tokyo Night purple and installs it as a theme that inherits everything
+# else from Adwaita. Same hex mapping used on openbsd-btw today.
+- name: Ensure Adwaita-Violet icon theme directories exist
+  ansible.builtin.file:
+    path: "~/.local/share/icons/Adwaita-Violet/scalable/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - places
+    - status
+
+- name: Write Adwaita-Violet index.theme
+  ansible.builtin.copy:
+    dest: "~/.local/share/icons/Adwaita-Violet/index.theme"
+    mode: "0644"
+    content: |
+      [Icon Theme]
+      Name=Adwaita-Violet
+      Comment=Adwaita with Tokyo Night purple folders
+      Inherits=Adwaita,hicolor
+      Directories=scalable/places,scalable/status
+
+      [scalable/places]
+      Size=128
+      Type=Scalable
+      MinSize=8
+      MaxSize=512
+      Context=Places
+
+      [scalable/status]
+      Size=128
+      Type=Scalable
+      MinSize=8
+      MaxSize=512
+      Context=Status
+
+- name: Recolor folder.svg to Tokyo Night purple
+  ansible.builtin.shell: >
+    sed
+    -e "s/#438de6/#7c5cd6/g"
+    -e "s/#62a0ea/#9d7cd8/g"
+    -e "s/#afd4ff/#dcc7fc/g"
+    -e "s/#c0d5ea/#dcc7fc/g"
+    -e "s/#a4caee/#bb9af7/g"
+    /usr/local/share/icons/Adwaita/scalable/places/folder.svg
+    > ~/.local/share/icons/Adwaita-Violet/scalable/places/folder.svg
+  changed_when: true
+
+- name: Recolor folder-open.svg to Tokyo Night purple
+  ansible.builtin.shell: >
+    sed
+    -e "s/#438de6/#7c5cd6/g"
+    -e "s/#62a0ea/#9d7cd8/g"
+    -e "s/#afd4ff/#dcc7fc/g"
+    -e "s/#c0d5ea/#dcc7fc/g"
+    -e "s/#a4caee/#bb9af7/g"
+    /usr/local/share/icons/Adwaita/scalable/status/folder-open.svg
+    > ~/.local/share/icons/Adwaita-Violet/scalable/status/folder-open.svg
+  changed_when: true
+
+- name: Install wallpaper
+  ansible.builtin.copy:
+    src: wallpaper.png
+    dest: "~/Pictures/wallpaper.png"
+    mode: "0644"
+
+- name: Ensure GTK3 config dir exists
+  ansible.builtin.file:
+    path: "~/.config/gtk-3.0"
+    state: directory
+    mode: "0755"

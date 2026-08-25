@@ -1,0 +1,37 @@
+---
+# OpenBSD's port tree has no JetBrainsMono Nerd Font package (only plain
+# jetbrains-mono, no icon glyphs). Pull the official patched release
+# directly - verified URL as of today (2026-08-24).
+- name: Check if font already installed
+  ansible.builtin.stat:
+    path: "~/.local/share/fonts/JetBrainsMonoNF/JetBrainsMonoNerdFont-Regular.ttf"
+  register: font_installed
+
+- name: Download and extract JetBrainsMono Nerd Font
+  when: not font_installed.stat.exists
+  block:
+    - name: Ensure fonts dir exists
+      ansible.builtin.file:
+        path: "~/.local/share/fonts/JetBrainsMonoNF"
+        state: directory
+        mode: "0755"
+
+    - name: Download font zip
+      ansible.builtin.get_url:
+        url: https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip
+        dest: /tmp/JetBrainsMono.zip
+        mode: "0644"
+
+    - name: Extract font (base tar has no -J/unzip; use python3 zipfile)
+      ansible.builtin.command: >
+        python3 -c "import zipfile; zipfile.ZipFile('/tmp/JetBrainsMono.zip').extractall('/home/{{ ansible_user }}/.local/share/fonts/JetBrainsMonoNF')"
+      changed_when: true
+
+    - name: Remove downloaded zip
+      ansible.builtin.file:
+        path: /tmp/JetBrainsMono.zip
+        state: absent
+
+- name: Rebuild font cache
+  ansible.builtin.command: fc-cache -f "~/.local/share/fonts"
+  changed_when: true

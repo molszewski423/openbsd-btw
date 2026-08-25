@@ -1,0 +1,29 @@
+---
+- name: Enable tailscaled
+  ansible.builtin.service:
+    name: tailscaled
+    enabled: true
+
+- name: Start tailscaled
+  ansible.builtin.service:
+    name: tailscaled
+    state: started
+
+- name: Ensure sndiod is enabled
+  ansible.builtin.service:
+    name: sndiod
+    enabled: true
+    state: started
+
+# Deliberately not automated:
+#   - `tailscale up` needs interactive browser auth or a pre-generated key
+#     (pass one via `-e tailscale_authkey=tskey-...` and uncomment below
+#     if you want this hands-off).
+#   - `chsh -s /usr/local/bin/fish` - personal preference, not everyone
+#     wants fish as their actual login shell vs. just their terminal shell.
+#   - hostname - each machine should pick its own.
+#
+# - name: Authenticate tailscale
+#   ansible.builtin.command: "tailscale up --authkey={{ tailscale_authkey }}"
+#   when: tailscale_authkey is defined
+#   changed_when: true

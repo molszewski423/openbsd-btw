@@ -1,0 +1,24 @@
+---
+# The final, actually-used package set from today's setup. Excludes things
+# we tried and abandoned along the way (dmenu -> switched to rofi,
+# gitwrapper -> wrong package, papirus-icon-theme -> ran out of disk,
+# never used) so a fresh install doesn't carry that cruft.
+- name: Install desktop packages
+  community.general.openbsd_pkg:
+    name:
+      - git
+      - thunar
+      - ranger
+      - feh
+      - picom
+      - rofi
+      - maim
+      - xclip
+      - dunst
+      - tailscale
+      - fish
+      - ripgrep
+      - libreoffice
+      - neovim
+      - arc-theme-solid
+    state: present
