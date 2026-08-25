@@ -2,9 +2,13 @@
 # OpenBSD's port tree has no JetBrainsMono Nerd Font package (only plain
 # jetbrains-mono, no icon glyphs). Pull the official patched release
 # directly - verified URL as of today (2026-08-24).
+# Explicit /home/{{ ansible_user }} throughout this role, not bare "~" -
+# site.yml's global become:true makes "~" expand to root's home instead of
+# the target user's (a real failure hit in the dotfiles role: "file
+# (/root/bin/urxvt-fish) is absent, cannot continue").
 - name: Check if font already installed
   ansible.builtin.stat:
-    path: "~/.local/share/fonts/JetBrainsMonoNF/JetBrainsMonoNerdFont-Regular.ttf"
+    path: "/home/{{ ansible_user }}/.local/share/fonts/JetBrainsMonoNF/JetBrainsMonoNerdFont-Regular.ttf"
   register: font_installed
 
 - name: Download and extract JetBrainsMono Nerd Font
@@ -12,7 +16,7 @@
   block:
     - name: Ensure fonts dir exists
       ansible.builtin.file:
-        path: "~/.local/share/fonts/JetBrainsMonoNF"
+        path: "/home/{{ ansible_user }}/.local/share/fonts/JetBrainsMonoNF"
         state: directory
         mode: "0755"
 
@@ -33,5 +37,5 @@
         state: absent
 
 - name: Rebuild font cache
-  ansible.builtin.command: fc-cache -f "~/.local/share/fonts"
+  ansible.builtin.command: fc-cache -f "/home/{{ ansible_user }}/.local/share/fonts"
   changed_when: true

@@ -4,7 +4,7 @@
 
 - name: Check if Zig 0.16.0 already installed
   ansible.builtin.stat:
-    path: "~/.local/zig-0.16.0/zig"
+    path: "/home/{{ ansible_user }}/.local/zig-0.16.0/zig"
   register: zig_installed
 
 - name: Install Zig 0.16.0 (OpenBSD's packaged zig is stuck on 0.15.x; oxwm needs 0.16+)
@@ -16,7 +16,7 @@
         state: directory
         mode: "0755"
       loop:
-        - "~/.local/zig-0.16.0"
+        - "/home/{{ ansible_user }}/.local/zig-0.16.0"
         - /tmp/zigextract
 
     - name: Download Zig 0.16.0 OpenBSD build
@@ -43,13 +43,13 @@
 
     - name: Symlink zig into ~/bin
       ansible.builtin.file:
-        src: "~/.local/zig-0.16.0/zig"
-        dest: "~/bin/zig"
+        src: "/home/{{ ansible_user }}/.local/zig-0.16.0/zig"
+        dest: "/home/{{ ansible_user }}/bin/zig"
         state: link
 
 - name: Check if oxwm already built
   ansible.builtin.stat:
-    path: "~/.local/bin/oxwm"
+    path: "/home/{{ ansible_user }}/.local/bin/oxwm"
   register: oxwm_built
 
 - name: Build oxwm
@@ -58,7 +58,7 @@
     - name: Clone oxwm
       ansible.builtin.git:
         repo: https://github.com/tonybanters/oxwm
-        dest: "~/src/oxwm"
+        dest: "/home/{{ ansible_user }}/src/oxwm"
         depth: 1
 
     # Upstream build.zig doesn't link everything OpenBSD's static X11/font
@@ -69,7 +69,7 @@
     - name: Install patched build.zig
       ansible.builtin.copy:
         src: build.zig
-        dest: "~/src/oxwm/build.zig"
+        dest: "/home/{{ ansible_user }}/src/oxwm/build.zig"
         mode: "0644"
 
     - name: Get OpenBSD release version for the build target
@@ -83,5 +83,5 @@
         -Dtarget=x86_64-openbsd.{{ openbsd_release.stdout }}
         --prefix ~/.local
       args:
-        chdir: "~/src/oxwm"
+        chdir: "/home/{{ ansible_user }}/src/oxwm"
       changed_when: true

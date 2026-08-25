@@ -5,7 +5,7 @@
 # else from Adwaita. Same hex mapping used on openbsd-btw today.
 - name: Ensure Adwaita-Violet icon theme directories exist
   ansible.builtin.file:
-    path: "~/.local/share/icons/Adwaita-Violet/scalable/{{ item }}"
+    path: "/home/{{ ansible_user }}/.local/share/icons/Adwaita-Violet/scalable/{{ item }}"
     state: directory
     mode: "0755"
   loop:
@@ -14,7 +14,7 @@
 
 - name: Write Adwaita-Violet index.theme
   ansible.builtin.copy:
-    dest: "~/.local/share/icons/Adwaita-Violet/index.theme"
+    dest: "/home/{{ ansible_user }}/.local/share/icons/Adwaita-Violet/index.theme"
     mode: "0644"
     content: |
       [Icon Theme]
@@ -64,11 +64,11 @@
 - name: Install wallpaper
   ansible.builtin.copy:
     src: wallpaper.png
-    dest: "~/Pictures/wallpaper.png"
+    dest: "/home/{{ ansible_user }}/Pictures/wallpaper.png"
     mode: "0644"
 
 - name: Ensure GTK3 config dir exists
   ansible.builtin.file:
-    path: "~/.config/gtk-3.0"
+    path: "/home/{{ ansible_user }}/.config/gtk-3.0"
     state: directory
     mode: "0755"
