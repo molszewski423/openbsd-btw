@@ -30,7 +30,7 @@
       changed_when: true
 
     - name: Move extracted contents into place
-      ansible.builtin.shell: mv /tmp/zigextract/*/* ~/.local/zig-0.16.0/
+      ansible.builtin.shell: "mv /tmp/zigextract/*/* /home/{{ ansible_user }}/.local/zig-0.16.0/"
       changed_when: true
 
     - name: Clean up
@@ -79,9 +79,9 @@
 
     - name: Build oxwm
       ansible.builtin.command: >
-        ~/.local/zig-0.16.0/zig build
+        /home/{{ ansible_user }}/.local/zig-0.16.0/zig build
         -Dtarget=x86_64-openbsd.{{ openbsd_release.stdout }}
-        --prefix ~/.local
+        --prefix /home/{{ ansible_user }}/.local
       args:
         chdir: "/home/{{ ansible_user }}/src/oxwm"
       changed_when: true

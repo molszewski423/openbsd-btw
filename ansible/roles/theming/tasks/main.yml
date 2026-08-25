@@ -46,7 +46,7 @@
     -e "s/#c0d5ea/#dcc7fc/g"
     -e "s/#a4caee/#bb9af7/g"
     /usr/local/share/icons/Adwaita/scalable/places/folder.svg
-    > ~/.local/share/icons/Adwaita-Violet/scalable/places/folder.svg
+    > /home/{{ ansible_user }}/.local/share/icons/Adwaita-Violet/scalable/places/folder.svg
   changed_when: true
 
 - name: Recolor folder-open.svg to Tokyo Night purple
@@ -58,7 +58,7 @@
     -e "s/#c0d5ea/#dcc7fc/g"
     -e "s/#a4caee/#bb9af7/g"
     /usr/local/share/icons/Adwaita/scalable/status/folder-open.svg
-    > ~/.local/share/icons/Adwaita-Violet/scalable/status/folder-open.svg
+    > /home/{{ ansible_user }}/.local/share/icons/Adwaita-Violet/scalable/status/folder-open.svg
   changed_when: true
 
 - name: Install wallpaper
