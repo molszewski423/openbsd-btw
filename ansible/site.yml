@@ -6,7 +6,10 @@
 # Idempotent - safe to re-run.
 
 - name: OpenBSD desktop setup
-  hosts: openbsd_desktops
+  # "all" rather than "openbsd_desktops" so this also matches the ad-hoc
+  # localhost inventory firstboot.sh uses for self-provisioning
+  # (-i "localhost," doesn't put that host in any named group).
+  hosts: all
   become: true
   become_method: community.general.doas
 
