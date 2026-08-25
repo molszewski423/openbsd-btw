@@ -9,7 +9,11 @@ cat >> /etc/rc.firsttime <<'EOF'
 
 # --- openbsd-btw first-boot provisioning ---
 echo "openbsd-btw: fetching and running firstboot.sh..."
-ftp -o /tmp/firstboot.sh "http://git.lan/mike/openbsd-btw/raw/branch/main/iso/firstboot.sh" \
+# Prefer the LAN gitea instance, fall back to the public GitLab mirror so
+# this works for anyone who just has internet access, not just on the
+# home network.
+( ftp -o /tmp/firstboot.sh "http://git.lan/mike/openbsd-btw/raw/branch/main/iso/firstboot.sh" 2>/dev/null \
+	|| ftp -o /tmp/firstboot.sh "https://gitlab.com/molszewski423/openbsd-btw/-/raw/main/iso/firstboot.sh" ) \
 	&& sh /tmp/firstboot.sh >/var/log/openbsd-btw-firstboot.log 2>&1 \
 	|| echo "openbsd-btw: firstboot.sh failed, check /var/log/openbsd-btw-firstboot.log"
 # --- end openbsd-btw ---
