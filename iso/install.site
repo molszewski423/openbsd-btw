@@ -1,20 +1,21 @@
 #!/bin/sh
 # Runs once, chrooted, at the very end of the OpenBSD install/upgrade
-# process (see install.site(5)). Keep this minimal - just append a stub
-# to rc.firsttime that does the real provisioning once the machine has
-# actually booted and has real networking up. Append, don't overwrite:
-# the installer may have already written to rc.firsttime itself.
+# process (see install.site(5)). By the time this runs, everything else
+# packed into this same site set (including firstboot.sh, alongside this
+# script) has already been extracted onto the target filesystem's root -
+# so no network fetch is needed to get firstboot.sh onto the machine, only
+# for what firstboot.sh itself does later (cloning the full ansible repo).
+#
+# Keep this minimal - just append a stub to rc.firsttime that runs the
+# already-present firstboot.sh once the machine has actually booted and
+# has real networking up. Append, don't overwrite: the installer may
+# have already written to rc.firsttime itself.
 
 cat >> /etc/rc.firsttime <<'EOF'
 
 # --- openbsd-btw first-boot provisioning ---
-echo "openbsd-btw: fetching and running firstboot.sh..."
-# Prefer the LAN gitea instance, fall back to the public GitLab mirror so
-# this works for anyone who just has internet access, not just on the
-# home network.
-( ftp -o /tmp/firstboot.sh "http://git.lan/mike/openbsd-btw/raw/branch/main/iso/firstboot.sh" 2>/dev/null \
-	|| ftp -o /tmp/firstboot.sh "https://gitlab.com/molszewski423/openbsd-btw/-/raw/main/iso/firstboot.sh" ) \
-	&& sh /tmp/firstboot.sh >/var/log/openbsd-btw-firstboot.log 2>&1 \
+echo "openbsd-btw: running firstboot.sh..."
+sh /firstboot.sh >/var/log/openbsd-btw-firstboot.log 2>&1 \
 	|| echo "openbsd-btw: firstboot.sh failed, check /var/log/openbsd-btw-firstboot.log"
 # --- end openbsd-btw ---
 EOF

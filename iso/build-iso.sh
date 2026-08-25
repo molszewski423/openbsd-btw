@@ -12,10 +12,62 @@
 set -e
 
 REL=7.9
+RELNUM=$(echo "$REL" | tr -d .)   # "7.9" -> "79", for filenames like site79.tgz.
+                                  # The directory on the ISO keeps the dot
+                                  # ("7.9/amd64/...") - use $REL for that,
+                                  # $RELNUM only for version-in-filename.
 ARCH=amd64
-WORKDIR=$(mktemp -d)
-ISO_URL="https://cdn.openbsd.org/pub/OpenBSD/${REL}/${ARCH}/install${REL%.*}${REL#*.}.iso"
-OUT_ISO="./openbsd-btw-${REL}.iso"
+# Capture absolute paths BEFORE we cd into the scratch workdir below -
+# "$(dirname "$0")" and "./..." are only valid relative to the directory
+# we're in *right now*, and everything after this point runs from deep
+# inside a temp dir that gets deleted on exit. Getting this wrong means
+# either "install.site: No such file" (looked for it in the wrong place)
+# or silently deleting the finished ISO along with the scratch dir
+# (wrote it to the wrong place) - both happened testing this.
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+ORIG_DIR=$(pwd)
+
+# /tmp is usually too small for a full ISO respin, and since this needs to
+# run under doas (root), a TMPDIR=... env var prefix won't work either -
+# doas strips environment variables by default, it doesn't pass them
+# through to the target command. Pass the scratch dir as an argument
+# instead (tilde-expanded by your shell before doas ever runs), e.g.:
+#   doas ./build-iso.sh ~/iso-build-tmp
+WORKDIR_BASE="${1:-/tmp}"
+mkdir -p "$WORKDIR_BASE"
+WORKDIR=$(mktemp -d "$WORKDIR_BASE/openbsd-btw-iso.XXXXXXXX")
+ISO_URL="https://cdn.openbsd.org/pub/OpenBSD/${REL}/${ARCH}/install${RELNUM}.iso"
+OUT_ISO="$ORIG_DIR/openbsd-btw-${REL}.iso"
+
+# set -e means a mid-script failure skips the cleanup at the bottom of this
+# file entirely, leaving mounts/vnd devices/scratch dirs stuck for the next
+# run (exactly what happened testing this). Trap EXIT instead so cleanup
+# always runs, success or failure - best-effort, errors ignored since half
+# these may already be torn down depending on how far the script got.
+cleanup() {
+	exit_code=$?
+	umount "$WORKDIR/iso_mnt" 2>/dev/null || true
+	umount "$WORKDIR/ramdisk_mnt" 2>/dev/null || true
+	vnconfig -u vnd1 2>/dev/null || true
+	vnconfig -u vnd2 2>/dev/null || true
+	cd /
+	# Only remove the workdir on success - on failure, leave it so the
+	# intermediate files (bsd.rd.new, ramdisk.fs, etc.) can be inspected
+	# instead of forcing a full re-download to debug.
+	if [ "$exit_code" -eq 0 ]; then
+		rm -rf "$WORKDIR"
+	else
+		echo "==> Failed - scratch dir left at $WORKDIR for inspection"
+	fi
+}
+trap cleanup EXIT
+
+# In case a previous crashed run left these configured/mounted from a
+# different $WORKDIR, clear them defensively before we start.
+umount /dev/vnd1c 2>/dev/null || true
+umount /dev/vnd2a 2>/dev/null || true
+vnconfig -u vnd1 2>/dev/null || true
+vnconfig -u vnd2 2>/dev/null || true
 
 echo "==> Working in $WORKDIR"
 cd "$WORKDIR"
@@ -31,37 +83,50 @@ cp -Rp iso_mnt/* iso_root/
 umount iso_mnt
 vnconfig -u vnd1
 
-echo "==> Building site set (site79.tgz) with install.site"
+echo "==> Building site set (site79.tgz) with install.site + firstboot.sh"
 mkdir site_root
-cp "$(dirname "$0")/install.site" site_root/install.site
-chmod +x site_root/install.site
-( cd site_root && tar -czf ../iso_root/${REL%.*}${REL#*.}/${ARCH}/site${REL%.*}${REL#*.}.tgz install.site )
+cp "$SCRIPT_DIR/install.site" site_root/install.site
+cp "$SCRIPT_DIR/firstboot.sh" site_root/firstboot.sh
+chmod +x site_root/install.site site_root/firstboot.sh
+# firstboot.sh goes in at the tar root so it lands at /firstboot.sh on the
+# installed system - install.site (also in this same tarball) references
+# it directly, no network fetch needed to get the bootstrap script onto
+# the machine.
+( cd site_root && tar -czf ../iso_root/${REL}/${ARCH}/site${RELNUM}.tgz install.site firstboot.sh )
 
 echo "==> Injecting auto_install.conf into bsd.rd's embedded ramdisk"
-cp iso_root/${REL%.*}${REL#*.}/${ARCH}/bsd.rd bsd.rd.orig
+cp iso_root/${REL}/${ARCH}/bsd.rd bsd.rd.orig
 cp bsd.rd.orig bsd.rd.new
-# bsd.rd carries an embedded rd(4) filesystem image as part of the kernel;
-# rdsetroot(8) extracts/replaces it directly - this is the OpenBSD-native
-# way to do this (no vnd mount needed for the ramdisk itself, only for
-# reading the ISO above).
+# bsd.rd on the install media is gzip-compressed, not a raw ELF -
+# rdsetroot needs the decompressed kernel to find/replace the embedded
+# rd(4) filesystem image, so gunzip first and regzip after (bsd.rd is
+# still bootable in either compressed or plain form, but match how it
+# shipped, since other tooling on the image may assume it's compressed).
+was_gzipped=false
+if file bsd.rd.new | grep -q gzip; then
+	was_gzipped=true
+	mv bsd.rd.new bsd.rd.new.gz
+	gunzip bsd.rd.new.gz
+fi
 rdsetroot -x bsd.rd.new ramdisk.fs
 vnconfig vnd2 ramdisk.fs
 mount /dev/vnd2a ramdisk_mnt 2>/dev/null || { mkdir ramdisk_mnt; mount /dev/vnd2a ramdisk_mnt; }
-cp "$(dirname "$0")/install.conf" ramdisk_mnt/auto_install.conf
+cp "$SCRIPT_DIR/install.conf" ramdisk_mnt/auto_install.conf
 umount ramdisk_mnt
 vnconfig -u vnd2
 rdsetroot bsd.rd.new ramdisk.fs
-cp bsd.rd.new iso_root/${REL%.*}${REL#*.}/${ARCH}/bsd.rd
+if $was_gzipped; then
+	gzip bsd.rd.new
+	mv bsd.rd.new.gz bsd.rd.new
+fi
+cp bsd.rd.new iso_root/${REL}/${ARCH}/bsd.rd
 
 echo "==> Rebuilding hybrid ISO"
 mkhybrid -a -R -T -L -l -d -D -N \
 	-o "$OUT_ISO" \
-	-b ${REL%.*}${REL#*.}/${ARCH}/cdbr \
-	-c ${REL%.*}${REL#*.}/${ARCH}/boot.catalog \
+	-b ${REL}/${ARCH}/cdbr \
+	-c ${REL}/${ARCH}/boot.catalog \
 	iso_root
 
 echo "==> Done: $OUT_ISO"
 echo "    Test it in a scratch VM before relying on it."
-
-cd /
-rm -rf "$WORKDIR"

@@ -9,8 +9,13 @@
 # below rather than anything more elaborate.
 set -e
 
-REPO_URL_LAN="http://git.lan/mike/openbsd-btw.git"
-REPO_URL_PUBLIC="https://gitlab.com/molszewski423/openbsd-btw.git"
+# rc.firsttime runs with a minimal base-system PATH that doesn't include
+# /usr/local/bin, where package-installed binaries (pip3, ansible-playbook)
+# actually live - hit this for real testing ("pip3: not found" right after
+# py3-pip installed successfully).
+export PATH=/usr/local/bin:/usr/local/sbin:$PATH
+
+REPO_URL="https://gitlab.com/molszewski423/openbsd-btw.git"
 
 retry_pkg_add() {
 	tries=0
@@ -35,11 +40,10 @@ echo "openbsd-btw firstboot: granting mike temporary passwordless doas for this 
 echo "permit nopass mike" >> /etc/doas.conf
 
 echo "openbsd-btw firstboot: cloning repo and running playbook as mike"
-# Prefer the LAN gitea instance (faster, and it's the source of truth), but
-# that's only reachable on the home network - fall back to the public
-# GitLab mirror so this works on any laptop with just internet access.
+# Public GitLab mirror only - this ISO is meant to be downloadable and
+# usable by anyone, not just on the home LAN.
 su -l mike -c "
-	git clone '$REPO_URL_LAN' ~/openbsd-btw 2>/dev/null || git clone '$REPO_URL_PUBLIC' ~/openbsd-btw
+	git clone '$REPO_URL' ~/openbsd-btw
 	cd ~/openbsd-btw/ansible
 	ansible-playbook site.yml -i 'localhost,' -c local
 "
