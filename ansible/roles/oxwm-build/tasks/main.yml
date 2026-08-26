@@ -75,10 +75,23 @@
 - name: Build oxwm
   when: not oxwm_built.stat.exists
   block:
+    # Pinned, not tracking the default branch: the original hand-built
+    # reference machine's oxwm was built from this exact commit
+    # (2026-07-08) and works correctly there. A fresh clone of whatever's
+    # newest hit a real, reproducible bug not present on the reference
+    # machine - the status bar's height isn't subtracted from tiled
+    # window sizes (bottom of every tiled window, including the live
+    # shell prompt, renders just off-screen), plus toggle_bar/float-mode
+    # bar visibility not reliably reversing. Checked upstream: not a
+    # known/fixed issue, and a lot has landed since July 8 (monitor
+    # handling rewrites, dwindle layout, systray) that could plausibly
+    # have introduced it - pin to the known-good commit instead of
+    # chasing a moving target.
     - name: Clone oxwm
       ansible.builtin.git:
         repo: https://github.com/tonybanters/oxwm
         dest: "/home/{{ ansible_user }}/src/oxwm"
+        version: afc403f33e4882f3007fb2d5aead402c1dba7ebd
         depth: 1
 
     # Upstream build.zig doesn't link everything OpenBSD's static X11/font
