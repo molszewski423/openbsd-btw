@@ -121,7 +121,7 @@ rdsetroot -x bsd.rd.new ramdisk.fs
 vnconfig vnd2 ramdisk.fs
 mkdir ramdisk_mnt
 mount /dev/vnd2a ramdisk_mnt
-cp "$SCRIPT_DIR/install.conf" ramdisk_mnt/auto_install.conf
+cp "$SCRIPT_DIR/install-img.conf" ramdisk_mnt/auto_install.conf
 umount ramdisk_mnt
 vnconfig -u vnd2
 rdsetroot bsd.rd.new ramdisk.fs
