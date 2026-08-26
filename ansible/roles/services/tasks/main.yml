@@ -15,13 +15,26 @@
     enabled: true
     state: started
 
+# Enabled only, not started: this runs mid-provisioning, before
+# onetime-account-setup.sh's own temporary `startx` session (see
+# firstboot.sh) - starting xenodm now would fight it for the console.
+# Enabling just flips the rc.conf.local flag; /etc/rc actually starts it
+# later in this same boot, after rc.firsttime (and that temporary X
+# session) has already finished and freed the console, landing on the
+# graphical xenodm login screen with no separate reboot needed.
+- name: Enable xenodm (graphical login, replacing the text console)
+  ansible.builtin.service:
+    name: xenodm
+    enabled: true
+
 # Deliberately not automated:
 #   - `tailscale up` needs interactive browser auth or a pre-generated key
 #     (pass one via `-e tailscale_authkey=tskey-...` and uncomment below
 #     if you want this hands-off).
 #   - `chsh -s /usr/local/bin/fish` - personal preference, not everyone
 #     wants fish as their actual login shell vs. just their terminal shell.
-#   - hostname - each machine should pick its own.
+#   - hostname - handled by onetime-account-setup.sh's graphical prompt
+#     instead (each machine picks its own /etc/myname there).
 #
 # - name: Authenticate tailscale
 #   ansible.builtin.command: "tailscale up --authkey={{ tailscale_authkey }}"

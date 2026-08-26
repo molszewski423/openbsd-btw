@@ -6,8 +6,10 @@
 # rofi prompt collects the real account details instead of a text prompt at
 # the rc.firsttime console.
 #
-# Renames the "setup" bootstrap account to whatever's entered here, then
-# exits - which ends this X session and lets firstboot.sh finish up.
+# Renames the "setup" bootstrap account to whatever's entered here, sets
+# the real hostname (replacing install.conf's CHANGEME.my.domain
+# placeholder), then exits - which ends this X session and lets
+# firstboot.sh finish up.
 set -e
 
 while true; do
@@ -21,9 +23,19 @@ while true; do
 	[ -n "$PASS1" ] && [ "$PASS1" = "$PASS2" ] && break
 	rofi -e "Passwords didn't match or were empty - try again."
 done
+while true; do
+	NEWHOST=$(rofi -dmenu -p "Hostname" -lines 0)
+	[ -n "$NEWHOST" ] && break
+done
 
 HASH=$(printf '%s' "$PASS1" | encrypt)
 usermod -l "$NEWUSER" -m -d "/home/$NEWUSER" -c "$FULLNAME" -p "$HASH" setup
 # Replaces the temporary nopass-setup rule (that account no longer exists
 # under that name) with a normal password-gated one for the real account.
 echo "permit persist $NEWUSER" > /etc/doas.conf
+
+# /etc/myname is what /etc/rc reads at boot to set the hostname
+# persistently; hostname(1) here just updates the running kernel value
+# for the remainder of this boot too.
+echo "$NEWHOST" > /etc/myname
+hostname "$NEWHOST"
