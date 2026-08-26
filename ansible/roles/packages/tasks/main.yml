@@ -33,3 +33,5 @@
     - neovim
     - arc-theme-solid
     - fastfetch
+    - rxvt-unicode--everything
+    - firefox
