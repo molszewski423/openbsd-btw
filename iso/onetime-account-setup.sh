@@ -12,6 +12,11 @@
 # firstboot.sh finish up.
 set -e
 
+# Same wallpaper .xsession sets later for the real desktop - "setup" is
+# still the account name at this point (rename happens below), so its
+# home is where the theming role actually put it.
+feh --bg-fill /home/setup/Pictures/wallpaper.png &
+
 while true; do
 	NEWUSER=$(rofi -dmenu -p "Username" -lines 0)
 	[ -n "$NEWUSER" ] && break
