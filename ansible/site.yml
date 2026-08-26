@@ -34,3 +34,17 @@
     - theming
     - oxwm-build
     - services
+
+  post_tasks:
+    # Every preceding role runs under become:true (root), and none of their
+    # file/copy tasks set an explicit owner - so everything they wrote into
+    # $HOME (dotfiles, zig, the wallpaper, Pictures/, ...) ended up owned by
+    # root instead of the actual account. A one-shot recursive chown here
+    # is simpler and more robust than adding owner/group to every task
+    # across every role (and catches anything a future role adds too).
+    - name: Ensure the whole home directory is owned by the account, not root
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        recurse: true

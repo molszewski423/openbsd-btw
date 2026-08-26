@@ -1,11 +1,14 @@
 ---
 # The dotfiles/ tree at the repo root mirrors $HOME structure, one
-# subdirectory per concern. Copy each straight in. mode: preserve already
-# carries over each source file's real permissions (all four bin/ scripts
-# are tracked in git as mode 100755) - a separate "chmod +x" task after
-# this one is redundant, and hit a real, unexplained "file
-# (.../bin/urxvt-fish) is absent" failure despite the copy succeeding, so
-# it's gone rather than chased further.
+# subdirectory per concern - EXCEPT bin/, whose contents are meant to land
+# in a ~/bin/ subdirectory, not directly at ~ like the others' dotfiles
+# (.cwmrc, .xsession, etc.) do. Copying it with the same dest: "~/" as
+# everything else silently placed pkg_add/set-wm/sync-cwm-menu/urxvt-fish
+# directly in $HOME instead - the actual root cause of what looked like a
+# missing-file mystery in the oxwm-build role (its "Symlink zig into
+# ~/bin" task failed with "No such file or directory" because ~/bin
+# itself never existed, not because zig was missing - the error message
+# names both paths, which reads misleadingly like a source-side problem).
 - name: Copy dotfiles into place
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../dotfiles/{{ item }}/"
@@ -20,7 +23,12 @@
     - rofi
     - dunst
     - picom
-    - bin
+
+- name: Copy bin/ scripts into ~/bin
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../dotfiles/bin/"
+    dest: "/home/{{ ansible_user }}/bin/"
+    mode: preserve
 
 - name: Clone neovim config
   ansible.builtin.git:
