@@ -137,10 +137,22 @@ fi
 cp bsd.rd.new iso_root/${REL}/${ARCH}/bsd.rd
 
 echo "==> Rebuilding hybrid ISO"
+# -e (EFI boot image) added after finding, via a real UEFI-firmware VM
+# boot test, that the respun ISO dropped to a UEFI shell instead of
+# booting - the official install ISO's own boot.catalog (which iso_mnt
+# ships prebuilt, unmodified) hardcodes an LBA for its EFI entry that
+# was only valid for its *own* file layout; mkhybrid assigns fresh LBAs
+# to every file when it rebuilds the image here, so that old catalog's
+# EFI pointer went stale and ended up pointing at unrelated file data
+# (confirmed via `xorriso -report_el_torito plain`, which showed the
+# "UEFI" entry resolving to comp79.tgz). Passing -e explicitly makes
+# mkhybrid regenerate a correct EFI entry for this build's actual
+# layout instead of inheriting the stale one.
 mkhybrid -a -R -T -L -l -d -D -N \
 	-o "$OUT_ISO" \
 	-b ${REL}/${ARCH}/cdbr \
 	-c ${REL}/${ARCH}/boot.catalog \
+	-e ${REL}/${ARCH}/eficdboot \
 	iso_root
 
 echo "==> Done: $OUT_ISO"
