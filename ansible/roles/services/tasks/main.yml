@@ -27,6 +27,45 @@
     name: xenodm
     enabled: true
 
+# Xsetup_0 runs as root every time the greeter (re)shows, before login -
+# this is where xenodm's stock xconsole shows up (confirmed visible on
+# the login screen itself, under both cwm and oxwm, so it's a stock
+# xenodm/display-as-console behavior, not a WM bug); .xsession's own
+# pkill only catches it after a user actually logs in. Killing it here
+# too covers the pre-login window. Never captured in automation before -
+# only the background color line existed, added by hand on the original
+# machine.
+- name: Theme the xenodm greeter (Tokyo Night background, kill stray xconsole)
+  ansible.builtin.copy:
+    dest: /etc/X11/xenodm/Xsetup_0
+    mode: "0755"
+    content: |
+      #!/bin/sh
+      pkill xconsole 2>/dev/null
+      /usr/X11R6/bin/xsetroot -solid "#1a1b26"
+
+# The login widget itself (xlogin) still used xenodm's stock blue-grey
+# defaults - appending overrides here rather than replacing the whole
+# (large, base-system) Xresources file: X resource lookup takes the last
+# matching definition for an identical pattern, so these safely win over
+# the stock lines earlier in the file without touching anything else in
+# it. Colors match the same palette already used in oxwm's config.lua
+# and .Xdefaults.
+- name: Theme the xenodm login widget to match Tokyo Night
+  ansible.builtin.blockinfile:
+    path: /etc/X11/xenodm/Xresources
+    marker: "! {mark} openbsd-btw Tokyo Night xlogin theme"
+    block: |
+      xlogin*background:     #1a1b26
+      xlogin*foreground:     #c0caf5
+      xlogin*greetColor:     #7aa2f7
+      xlogin*failColor:      #f7768e
+      xlogin*hiColor:        #9d7cd8
+      xlogin*shdColor:       #414868
+      xlogin*inpColor:       #24283b
+      *Foreground:           #c0caf5
+      *Background:           #1a1b26
+
 # Deliberately not automated:
 #   - `tailscale up` needs interactive browser auth or a pre-generated key
 #     (pass one via `-e tailscale_authkey=tskey-...` and uncomment below
