@@ -58,8 +58,9 @@ each time) until a real fresh install completed unattended end-to-end.
 
 ## Switching window managers
 
-Once installed: `set-wm cwm` or `set-wm oxwm`, then log out (or
-`doas rcctl restart xenodm`) to switch. Default is cwm.
+`xenodm` (graphical login) is enabled automatically, and boots straight
+into **oxwm** by default. To switch: `set-wm cwm` or `set-wm oxwm`, then
+log out (or `doas rcctl restart xenodm`) to take effect.
 
 ## oxwm keybinds (Mod4 = Super key)
 
@@ -95,6 +96,26 @@ hardware would be wrong or unnecessary.
    an `xorg.conf.d` snippet forcing 1920x1080 (see git history / the VM
    itself for the exact file if you need it for another VM). A real
    monitor advertises its own EDID correctly — not needed on real hardware.
+   Applies to *any* scratch VM used to test this, not just the reference
+   machine - a freshly-provisioned VM without this fix ran at the low
+   resolution and masqueraded as an oxwm tiling/status-bar bug for a
+   while before the actual cause (missing `xorg.conf.d`, not WM code) got
+   traced down.
+
+## Known limitations
+
+- **Wired ethernet is required for the actual install.** `install.conf`
+  hasn't been tested against (and doesn't answer) a wireless-only
+  network setup - `autoinstall(8)` needs an answer for every question it
+  actually asks, and configuring Wi-Fi means additional, genuinely
+  per-deployment questions (SSID, WPA passphrase) that can't be baked
+  into a public response file the same way hostname/timezone can.
+  `firstboot.sh` also needs real network access of its own (cloning the
+  Ansible repo, package installs, font/Zig downloads), so this isn't
+  optional even after the base OS is on disk. On hardware with no
+  built-in ethernet (common on modern laptops), use a USB-to-ethernet
+  adapter for the install; Wi-Fi can be configured normally afterward
+  once at a working desktop.
 
 ## oxwm build notes
 
@@ -111,6 +132,21 @@ X11/font libraries transitively need (`libxcb`, `libXau`, `libXdmcp`,
 segment OpenBSD's kernel requires to exec anything directly (fails with
 "Exec format error" otherwise). The playbook installs a patched
 `build.zig` with the correct linking and `use_lld = true`.
+
+**The clone is pinned to a specific commit, not the default branch.**
+The original hand-built reference machine's oxwm was built from a commit
+dated 2026-07-08 and works correctly. A fresh clone of whatever was
+newest as of this testing hit a real, reproducible bug not present on
+the reference machine: the status bar's height wasn't subtracted from
+tiled window sizes (the bottom of every tiled window, including the live
+shell prompt, rendered just off-screen), plus the bar's visibility not
+reliably toggling back on. Checked upstream GitHub issues and recent
+commit history first — not a known or already-fixed problem, and there's
+real churn in that range (monitor-handling rewrites, a new dwindle
+layout, systray) that could plausibly have introduced a regression.
+Pinned to the known-good commit instead of chasing a moving target;
+worth periodically checking if a newer commit resolves it and lifting
+the pin.
 
 ## Why this project, specifically
 
