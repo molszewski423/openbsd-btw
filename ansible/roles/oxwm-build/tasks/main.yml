@@ -54,9 +54,16 @@
         - "/home/{{ ansible_user }}/.cache/zigextract"
         - "/home/{{ ansible_user }}/.cache/zig-0.16.0.tar.xz"
 
+    # Relative target, not absolute - onetime-account-setup.sh renames the
+    # bootstrap account (and moves its home dir) after provisioning, which
+    # doesn't update an absolute symlink target's stored string, leaving it
+    # pointing at the old (now nonexistent) /home/setup/... path. A
+    # relative target survives the move since it's resolved from the
+    # symlink's own location, not affected by the parent directory being
+    # renamed.
     - name: Symlink zig into ~/bin
       ansible.builtin.file:
-        src: "/home/{{ ansible_user }}/.local/zig-0.16.0/zig"
+        src: "../.local/zig-0.16.0/zig"
         dest: "/home/{{ ansible_user }}/bin/zig"
         state: link
 
