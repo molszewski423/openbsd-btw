@@ -53,8 +53,12 @@ each time) until a real fresh install completed unattended end-to-end.
   `bin/`). Each mirrors its target path under `$HOME`.
 - `ansible/` — playbook that provisions a fresh OpenBSD install into this
   setup. Idempotent, safe to re-run.
-- `iso/` — builds a custom install ISO that runs the Ansible playbook
+- `iso/` — builds self-installing media that runs the Ansible playbook
   automatically on first boot via OpenBSD's `rc.firsttime` hook.
+  `build-img.sh` (the real deliverable, `dd`'d to a USB stick) and
+  `build-iso.sh` (a fast virtual-CD-ROM testing convenience only — see
+  "Distribution format" below) share the same `install*.conf` /
+  `firstboot.sh` / `onetime-account-setup.sh` payload.
 
 ## Switching window managers
 
@@ -76,11 +80,21 @@ desktop config itself, so they're documented here rather than baked into
 the Ansible playbook or ISO — applying them unconditionally on real
 hardware would be wrong or unnecessary.
 
-1. **Sound**: QEMU's default `ich6` (Intel HDA) emulated sound device
-   wasn't detected by OpenBSD's `azalia` driver (`No codecs found`).
-   Fixed on the **host** side via `virt-xml <vm> --edit --sound model=ac97`
-   — an emulated AC97 device works reliably with OpenBSD's `auich` driver.
-   Not applicable to real hardware, which has a real sound chip.
+1. **Sound**: which emulated sound device actually works is *host QEMU
+   build*-dependent, not a single universal fix. On one host, QEMU's
+   default `ich6` (Intel HDA) wasn't detected by OpenBSD's `azalia` driver
+   (`No codecs found`); switching to an emulated AC97 device via
+   `virt-xml <vm> --edit --sound model=ac97` fixed it (works with
+   OpenBSD's `auich` driver). On a different host (a Rocky Linux
+   `qemu-kvm` build), AC97/ES1370 weren't compiled in as device models at
+   all — only Intel HDA (`ich6`/`ich9`) — and `ich6` worked fine there once
+   the QEMU **audio backend** was also explicitly set (`virt-xml --edit
+   --audio type=pulseaudio`; a sound *device* alone doesn't imply a
+   working audio backend — it defaults to silent `type='none'`). Check
+   what your own QEMU build actually supports (`qemu-system-x86_64
+   -device help | grep -i hda`) rather than assuming either fix applies.
+   None of this is applicable to real hardware, which has a real sound
+   chip that OpenBSD's `azalia(4)` detects automatically.
 
 2. **Disk layout**: OpenBSD's installer auto-partitioning gave `/usr/local`
    only ~1.8GB on a 20GB virtual disk (most of the space went to an unused
@@ -102,19 +116,74 @@ hardware would be wrong or unnecessary.
    while before the actual cause (missing `xorg.conf.d`, not WM code) got
    traced down.
 
-## Boot mode
+4. **Multi-disk boot order/enumeration**: testing the `.img` in a VM
+   properly requires two virtual disks — the boot/source image plus a
+   separate empty target disk to install onto, so autoinstall doesn't try
+   to use the same disk as both the install target and the source of the
+   site set (real hardware has this naturally: the USB stick plus an
+   internal drive). But QEMU/firmware boot-order handling across two
+   disks of different types has been genuinely flaky in a way real
+   hardware wasn't: a legacy-BIOS (SeaBIOS) test hung indefinitely at
+   `Loading......` regardless of which bus types were used, and a
+   UEFI/OVMF test loaded the bootloader fine but then had OpenBSD's own
+   `hd0`/`hd1` disk numbering not match which disk actually had the boot
+   data, again regardless of bus-type swapping. Two separate real
+   laptops (USB stick + internal drive both present) booted the exact
+   same `.img` correctly in both legacy and UEFI mode with no such issue.
+   Treat this as a QEMU/firmware testing artifact, not a sign the `.img`
+   is broken — if a VM's multi-disk boot misbehaves this way, prefer
+   trusting a real-hardware test over continuing to fight the VM.
 
-Both legacy BIOS and UEFI boot are supported and verified - actually
-booted, not just assumed. Building the ISO's hybrid El Torito boot
-catalog needs an explicit `-e <eficdboot>` passed to `mkhybrid` (see
-`iso/build-iso.sh`): the official install ISO's own boot catalog (which
-gets copied in unmodified) hardcodes an LBA for its EFI entry that's
-only valid for its *original* file layout, and every respin reassigns
-fresh LBAs to every file - so without `-e`, the inherited EFI entry goes
-stale and points at unrelated file data. Caught by actually booting a
-respun ISO under real UEFI firmware (QEMU+OVMF) and watching it drop to
-a UEFI shell instead of the installer; every prior test in this whole
-project had gone through legacy BIOS only.
+## Distribution format: use the `.img`, not the `.iso`
+
+**`iso/build-img.sh` is the real deliverable.** It builds
+`openbsd-btw-X.Y.img` from OpenBSD's own `installXX.img` and is what
+should actually be `dd`'d to a USB stick:
+
+```
+dd if=openbsd-btw-7.9.img of=/dev/rsdN bs=1M
+```
+
+This was learned the hard way: OpenBSD's own FAQ (openbsd.org/faq/faq4.html)
+says plainly that `installXX.iso` is for optical media only and
+`installXX.img` is the disk image meant for a USB flash drive — but this
+project didn't take that at face value until it became a real, practical
+failure. A respun `.iso` (`iso/build-iso.sh`, described below) booted
+fine as a virtual CD-ROM in *every* VM test done during development, then
+failed to boot at all on 3 different real laptops from 2 different USB
+sticks written with `dd`. Only after actually trying `install79.img`
+instead did real hardware boot correctly.
+
+`build-img.sh` works by mounting the base `.img`'s existing OpenBSD (FFS)
+partition read-write and copying in the site set plus a modified
+`bsd.rd` **in place** — it never rebuilds the image from scratch the way
+the ISO approach does, so the existing MBR partition table, EFI System
+Partition, and boot blocks are never touched or reassigned. That
+sidesteps an entire class of bug the `.iso` approach hit (below).
+
+**Verified on real hardware, both boot modes:** a Lenovo Z50-75 installed
+end-to-end via UEFI and reached a fully working oxwm desktop
+(confirmed via `fastfetch`: correct theme, fonts, packages, window
+manager). A second laptop (Acer) also installed successfully via UEFI
+and is what surfaced the DHCP-timeout autoinstall bug documented below.
+Legacy BIOS boot of the `.img` is also supported (same MBR/boot-block
+mechanism OpenBSD ships) but hasn't yet been the *primary* path tested
+on real hardware — UEFI has.
+
+`iso/build-iso.sh` (the `.iso` builder) is kept only as a fast
+virtual-CD-ROM testing convenience — e.g. attached via `--cdrom` in a
+scratch VM, where a virtual optical drive is a faster dev loop than
+writing a real USB stick every iteration. **Do not `dd` the `.iso` to a
+USB stick** — it isn't structured for that and won't boot. Its own UEFI
+boot catalog needed a real fix along the way: building it requires an
+explicit `-e <eficdboot>` passed to `mkhybrid` (see `build-iso.sh`),
+because the official install ISO's own boot catalog (copied in
+unmodified) hardcodes an LBA for its EFI entry that's only valid for its
+*original* file layout, and every respin reassigns fresh LBAs to every
+file — without `-e`, the inherited EFI entry goes stale and points at
+unrelated file data. Caught by actually booting a respun ISO under real
+UEFI firmware (QEMU+OVMF) and watching it drop to a UEFI shell instead
+of the installer.
 
 ## Known limitations
 
@@ -130,6 +199,39 @@ project had gone through legacy BIOS only.
   built-in ethernet (common on modern laptops), use a USB-to-ethernet
   adapter for the install; Wi-Fi can be configured normally afterward
   once at a working desktop.
+
+- **A slow DHCP response can hard-fail the whole autoinstall if
+  unanswered.** `autoinstall(8)` has no interactive fallback for any
+  question it actually asks — every question needs a scripted answer, or
+  it aborts with "Question has no answer in the response file" and drops
+  back to the Install/Upgrade/Autoinstall/Shell menu. One follow-up
+  question, "Default IPv4 route?", only appears when DHCP doesn't respond
+  within the installer's own ~30-second window (a switch without
+  portfast/spanning-tree fast-forwarding is a common real-world cause,
+  and this was hit on real hardware, not just theorized) and — unlike the
+  interface/address questions before it — has no built-in default. Both
+  `install.conf` and `install-img.conf` now answer
+  `Default IPv4 route = none`, which lets the base install complete even
+  without a route; if you hit this anyway (e.g. on an even slower
+  network), drop to the installer's shell, bring the interface up
+  manually (`ifconfig <if> up; dhclient <if>`), then return to the menu
+  and choose Autoinstall again.
+
+## Troubleshooting a USB write that "succeeded" but won't boot
+
+If a `dd` write reports success and a checksum read-back even matches,
+but the stick still won't boot on real hardware, verify the target
+device node is actually real before suspecting the image: run
+`stat /dev/sdX` and confirm it says `block special file`, not
+`regular file`. Some environments (containers/sandboxes without a udev
+daemon creating device nodes for hot-plugged USB storage) will silently
+let `dd` create a **plain file** at `/dev/sdX` if no real device node
+exists there yet — every subsequent checksum then "verifies" correctly
+because it's just comparing that fake file to itself, never touching the
+physical stick at all. If `stat` shows a regular file, find the real
+kernel device (`grep -w sdX /proc/partitions` for its major/minor), then
+`rm` the fake file and `mknod /dev/sdX b <major> <minor>` to restore the
+real block device node before writing again.
 
 ## oxwm build notes
 
@@ -214,7 +316,7 @@ postings name-check. The specific skills exercised map directly:
   it was confirmed nothing sensitive lived in it) rather than a default
   left unexamined.
 
-- **Knowing when automation should say no.** The three VM-only fixes
+- **Knowing when automation should say no.** The VM-only fixes
   documented above were deliberately *excluded* from the Ansible role
   rather than blindly encoded — because they're artifacts of the
   specific virtualization environment, not the target system, and
