@@ -14,22 +14,29 @@ set -e
 
 # Same wallpaper .xsession sets later for the real desktop - "setup" is
 # still the account name at this point (rename happens below), so its
-# home is where the theming role actually put it.
-feh --bg-fill /home/setup/Pictures/wallpaper.png &
+# home is where the theming role actually put it. Not backgrounded (no
+# &): rofi launching before feh finishes setting the root pixmap could
+# explain a stray black background.
+feh --bg-fill /home/setup/Pictures/wallpaper.png
+
+# Same theme config.lua's own rofi launcher (Mod4+D) uses - without it
+# these prompts fell back to rofi's own default (unstyled cream/tan) look,
+# clashing with everything else.
+ROFI_THEME=/home/setup/.config/rofi/config.rasi
 
 while true; do
-	NEWUSER=$(rofi -dmenu -p "Username" -lines 0)
+	NEWUSER=$(rofi -dmenu -theme "$ROFI_THEME" -p "Username" -lines 0)
 	[ -n "$NEWUSER" ] && break
 done
-FULLNAME=$(rofi -dmenu -p "Full name" -lines 0)
+FULLNAME=$(rofi -dmenu -theme "$ROFI_THEME" -p "Full name" -lines 0)
 while true; do
-	PASS1=$(rofi -dmenu -password -p "Password" -lines 0)
-	PASS2=$(rofi -dmenu -password -p "Confirm password" -lines 0)
+	PASS1=$(rofi -dmenu -theme "$ROFI_THEME" -password -p "Password" -lines 0)
+	PASS2=$(rofi -dmenu -theme "$ROFI_THEME" -password -p "Confirm password" -lines 0)
 	[ -n "$PASS1" ] && [ "$PASS1" = "$PASS2" ] && break
-	rofi -e "Passwords didn't match or were empty - try again."
+	rofi -e "Passwords didn't match or were empty - try again." -theme "$ROFI_THEME"
 done
 while true; do
-	NEWHOST=$(rofi -dmenu -p "Hostname" -lines 0)
+	NEWHOST=$(rofi -dmenu -theme "$ROFI_THEME" -p "Hostname" -lines 0)
 	[ -n "$NEWHOST" ] && break
 done
 
