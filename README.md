@@ -102,6 +102,20 @@ hardware would be wrong or unnecessary.
    while before the actual cause (missing `xorg.conf.d`, not WM code) got
    traced down.
 
+## Boot mode
+
+Both legacy BIOS and UEFI boot are supported and verified - actually
+booted, not just assumed. Building the ISO's hybrid El Torito boot
+catalog needs an explicit `-e <eficdboot>` passed to `mkhybrid` (see
+`iso/build-iso.sh`): the official install ISO's own boot catalog (which
+gets copied in unmodified) hardcodes an LBA for its EFI entry that's
+only valid for its *original* file layout, and every respin reassigns
+fresh LBAs to every file - so without `-e`, the inherited EFI entry goes
+stale and points at unrelated file data. Caught by actually booting a
+respun ISO under real UEFI firmware (QEMU+OVMF) and watching it drop to
+a UEFI shell instead of the installer; every prior test in this whole
+project had gone through legacy BIOS only.
+
 ## Known limitations
 
 - **Wired ethernet is required for the actual install.** `install.conf`
