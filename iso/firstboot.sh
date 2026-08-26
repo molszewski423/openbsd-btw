@@ -74,4 +74,13 @@ echo "openbsd-btw firstboot: launching graphical account setup"
 startx /onetime-account-setup.sh || \
 	echo "openbsd-btw firstboot: graphical account setup failed - $BOOTSTRAP_USER account left in place, check /var/log/Xorg.0.log"
 
+# /etc/rc reads rc.conf.local (and decides what to start) once, early in
+# boot - before rc.firsttime, and this script within it, ever run. The
+# services role's `rcctl enable xenodm` above takes effect on the *next*
+# boot, not this one, so start it explicitly here instead of waiting for
+# a reboot that isn't otherwise going to happen. Console is free again
+# now that the temporary account-setup X session above has exited.
+echo "openbsd-btw firstboot: starting xenodm"
+rcctl start xenodm || echo "openbsd-btw firstboot: xenodm failed to start, check /var/log/Xorg.0.log"
+
 echo "openbsd-btw firstboot: done"
